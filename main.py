@@ -1,7 +1,9 @@
 # main.py
 import pandas as pd
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pathlib import Path
 
 # --- Application Setup ---
@@ -24,11 +26,14 @@ try:
     # Define the path to the CSV file
     DATA_PATH = BASE_DIR / "data" / "nutrition.csv"
 
+    templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
     # Load the data using the absolute path
     df = pd.read_csv(DATA_PATH, delimiter=";")
 
     # We only need the first column for the food names list
-    food_names = df.iloc[:, 1].tolist()
+    # print(df.columns)
+    food_names = df['name'].tolist()
     print("Data loaded successfully.")
 except FileNotFoundError:
     print("ERROR: data/nutrition.csv not found. Please make sure the file exists.")
@@ -49,3 +54,14 @@ def get_food_names():
         raise HTTPException(status_code=404, detail="Food list not available. Check server data.")
     
     return {"foods": food_names}
+
+@app.get("/", response_class=HTMLResponse, tags=["UI"])
+def serve_home_page(request: Request):
+    """
+    Serves the main HTML page of the application.
+    It passes the list of food names to the template to populate the dropdown.
+    """
+    return templates.TemplateResponse(
+        "index.html", 
+        {"request": request, "food_names": food_names}
+    )

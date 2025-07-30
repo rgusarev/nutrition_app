@@ -75,6 +75,138 @@
             
             <button type="submit">Add Food</button>
         </form>
+
+        <div id="food-list-container">
+            <h2 style="margin-top: 2rem;">Added Foods</h2>
+            <table id="food-table" style="width:100%; border-collapse: collapse; margin-top: 1rem;">
+                <thead>
+                    <tr style="background-color: #eee;">
+                        <th style="padding: 0.5rem; text-align: left;">Name</th>
+                        <th style="padding: 0.5rem; text-align: left;">Weight (g)</th>
+                        <th style="padding: 0.5rem; text-align: left;">Calories</th>
+                        <th style="padding: 0.5rem; text-align: left;">Iron (mg)</th>
+                        <th style="padding: 0.5rem; text-align: left;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="food-list-body">
+                    <!-- Food items will be dynamically added here by JavaScript -->
+                </tbody>
+            </table>
+            <div id="totals-container" style="text-align: right; margin-top: 1rem; font-size: 1.2rem; font-weight: bold;">
+                <!-- Totals will be displayed here -->
+            </div>
+        </div>
+
     </div>
+
+   <script>
+        // --- STATE MANAGEMENT ---
+        // This array will hold all the food items the user adds.
+        let foodList = [];
+
+        // --- DOM REFERENCES ---
+        const form = document.getElementById('nutrition-form');
+        const foodListBody = document.getElementById('food-list-body');
+        const totalsContainer = document.getElementById('totals-container');
+        const foodSelect = document.getElementById('food-select');
+        const weightInput = document.getElementById('weight-input');
+
+        // --- EVENT LISTENER for the form ---
+        form.addEventListener('submit', async function(event) {
+            event.preventDefault(); // Prevent page reload
+
+            const foodName = foodSelect.value;
+            const weight = parseFloat(weightInput.value);
+
+            if (!foodName || !weight || weight <= 0) {
+                alert('Please select a food and enter a valid weight.');
+                return;
+            }
+
+            try {
+                // Call our existing API to get the calculated data for one item
+                const response = await fetch('/api/calculate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ food_name: foodName, weight: weight })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'An unknown error occurred.');
+                }
+
+                const newFoodItem = await response.json();
+                
+                // Add the new food item to our list (the state)
+                foodList.push(newFoodItem);
+                
+                // Re-render the entire UI based on the new state
+                render();
+                
+                // Clear the form for the next entry
+                form.reset();
+                foodSelect.focus();
+
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        });
+
+        // --- RENDER FUNCTION ---
+        // This function is responsible for drawing the entire UI
+        // based on the current state of the `foodList` array.
+        function render() {
+            foodListBody.innerHTML = '';
+            totalsContainer.innerHTML = '';
+
+            let totalCalories = 0;
+            let totalIron = 0;
+
+            // Loop through each food in our list
+            foodList.forEach((food, index) => {
+                // Add this item's nutrients to our running totals
+                totalCalories += food.Calories;
+                totalIron += food.Iron;
+
+                // Create a new table row for this food item
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td style="padding: 0.5rem;">${food.Name}</td>
+                    <td style="padding: 0.5rem;">${food.Weight.toFixed(2)}</td>
+                    <td style="padding: 0.5rem;">${food.Calories.toFixed(2)}</td>
+                    <td style="padding: 0.5rem;">${food.Iron.toFixed(6)} mg</td>
+                    <td style="padding: 0.5rem;">
+                        <button class="delete-btn" data-index="${index}">Delete</button>
+                    </td>
+                `;
+                foodListBody.appendChild(row);
+            });
+
+            // Display the calculated totals
+            totalsContainer.innerHTML = `
+                <p>Total Calories: ${totalCalories.toFixed(2)}</p>
+                <p>Total Iron: ${totalIron.toFixed(6)} mg</p>
+            `;
+        }
+        
+        // --- EVENT DELEGATION FOR DELETE BUTTONS ---
+        // Listen for clicks on the whole table body, not individual buttons.
+        foodListBody.addEventListener('click', function(event) {
+            // Check if the clicked element has the 'delete-btn' class
+            if (event.target.classList.contains('delete-btn')) {
+                // Get the index of the item to delete from the button's 'data-index' attribute
+                const indexToDelete = parseInt(event.target.getAttribute('data-index'));
+                
+                // Remove the item from our state array using its index
+                foodList.splice(indexToDelete, 1);
+                
+                // Re-render the entire UI to reflect the change
+                render();
+            }
+        });
+
+    </script>
+
 </body>
 </html>

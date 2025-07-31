@@ -96,7 +96,7 @@ def calculate_nutrition(request: FoodRequest):
         "Iron": round(iron_data * 1e-3 * multiplier, 6)
     }
 
-    # FastAPI will automatically validate this dictionary against NutritionResult
+    # FastAPI will automatically validate this dictionary against NutritionResult (see schema.py)
     return result_data
 
 @app.get("/", response_class=HTMLResponse, tags=["UI"])
